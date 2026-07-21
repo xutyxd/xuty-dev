@@ -43,7 +43,7 @@ ${BOLD}Use:${RESET}
 ${BOLD}Opciones:${RESET}
   -n, --name NAME           Name of secret (required)
   -N, --namespace NS        Namespace destination (default: default)
-  -o --output-dir DIR       Output directory (default: secrets)
+  -o, --output-dir DIR       Output directory (default: secrets)
   -l, --literal KEY=VALUE   Variable of environment literal (can repeat)
   -f, --file PATH=KEY       File as value of secret (can repeat)
   -e, --env-file PATH       .env file with variables
@@ -163,6 +163,7 @@ check_cmd age
 # ───--- Verify .sops.yaml ---─────────────────────────────────────────
 if [[ ! -f ".sops.yaml" ]]; then
     echo -e "${RED}✗ .sops.yaml not found in current directory${RESET}"
+    echo "  Run ./setup-sops.sh to create it or"
     echo "  Create one with your public Age key:"
     echo ""
     echo "  creation_rules:"

@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudflared-config
+  namespace: cloudflared
+data:
+  config.yaml: |
+    tunnel: <TU_TUNNEL_UUID>
+    credentials-file: /etc/cloudflared/creds/credentials.json
+    metrics: 0.0.0.0:2000
+    no-autoupdate: true
+
+    ingress:
+      # Dominio raíz - tu página personal
+      - hostname: xuty.dev
+        service: http://traefik.kube-system.svc.cluster.local:80
+        originRequest:
+          noTLSVerify: true
+
+      # Blog
+      - hostname: blog.xuty.dev
+        service: http://traefik.kube-system.svc.cluster.local:80
+        originRequest:
+          noTLSVerify: true
+
+      # Cualquier subdominio futuro
+      - hostname: "*.xuty.dev"
+        service: http://traefik.kube-system.svc.cluster.local:80
+        originRequest:
+          noTLSVerify: true
+
+      # Fallback 404
+      - service: http_status:404

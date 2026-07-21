@@ -81,15 +81,28 @@ xuty-k8s/
     └── .sops.yaml               # Encryption config for SOPS
 ```
 
+## Stack
+| Component       | Purpose                                                                                                     |
+| --------------- | ----------------------------------------------------------------------------------------------------------- |
+| **k3s**         | Lightweight Kubernetes distribution. Includes Traefik, Flannel, CoreDNS, and containerd.                    |
+| **Flux CD**     | Native Kubernetes GitOps controller. Event-driven, with native RBAC and no UI that breaks the GitOps model. |
+| **Kustomize**   | Declarative manifest composition. No templates, no conditional logic. Built into `kubectl`.                 |
+| **SOPS + Age**  | Secret encryption. Commit encrypted YAML files to Git. Flux automatically decrypts them in the cluster.     |
+| **Traefik**     | Ingress controller (included with k3s). Routes HTTP traffic by hostname within the cluster.                 |
+| **cloudflared** | Cloudflare Tunnel client. Creates an outbound tunnel from the cluster to Cloudflare.                        |
+
+
+
 ## Requirements
 
 * A server with Ubuntu Server or similar (testing on Ubuntu 26.04)
 * A domain managed by Cloudflare (testing on xuty.dev)
 * A Cloudflare account (for Cloudflare Tunnel)
+* A GitHub account (for Flux)
 
 ## Installation
 
-### Check and disable swap memory
+### 1. Check and disable swap memory
 
 Check if your server has swap memory enabled:
 
@@ -110,7 +123,7 @@ Disable permanently:
 sudo nano /etc/fstab
 ```
 
-### Install k3s on server
+### 2. Install k3s on server
 
 ```bash
 curl -sfL https://get.k3s.io | sh -s - server \
@@ -125,42 +138,28 @@ chmod 600 ~/.kube/config
 ```
 With `--disable servicel` k3s will not create a load balancer for the cluster, not need as we will use Cloudflare tunnel.
 
-### Install tools
+### 3. Install tools
 
-#### Flux CLI
-```
+```bash
+# Flux CLI
 curl -s https://fluxcd.io/install.sh | sudo bash
+
+# SOPS
+./get-sops.sh
+
+# Age
+sudo apt install age
 ```
 
-#### SOPS
-Use:
+## 4. Setup SOPS
+SOPS is the tool used to encrypt secrets. It uses GPG to encrypt the secrets, and the public key is stored in the `.sops.yaml` file.
+So secrets are commiteable and secure.
 ```bash
 ./setup-sops.sh
 ```
 
-Or:
-```bash
-# Download the latest release
-LATEST=$(curl -s https://api.github.com/repos/getsops/sops/releases/latest | grep '"tag_name"' | cut -d '"' -f4)
-
-wget https://github.com/getsops/sops/releases/download/${LATEST}/sops-${LATEST#v}.linux.amd64
-
-# Make it executable
-chmod +x sops-${LATEST#v}.linux.amd64
-
-# Move it into your PATH
-sudo mv sops-${LATEST#v}.linux.amd64 /usr/local/bin/sops
-
-# Verify
-sops --version
-```
-
-#### Age
-```
-sudo apt install age
-```
-
-## Install Flux
+## 5. Setup FluxCD (GitOps)
+We apply `--export` to generate FluxCD bootstrap manifest, so it can be applied to the cluster manually.
 
 ```bash
 # Clone and move to the repo
@@ -178,16 +177,38 @@ flux bootstrap github \
   --personal
 ```
 
-## Setup SOPS
+It will generate a `bootstrap.yaml` with:
+ - Namespace `flux-system`
+ - Deployments of 4 flux components
+ - `GitRepository` aiming to the `main` branch of the repo
+ - `Kustomization` to reconcile `clusters/homelab/flux-system`
+
+```bash
+# Commit to Git
+git add clusters/homelab/flux-system/bootstrap.yaml
+git commit -m "bootstrap: add flux system manifests"
+git push origin main
+
+# Apply ONLY ONCE on cluster to start Flux
+kubectl apply -f clusters/homelab/flux-system/bootstrap.yaml
+```
+After this, Flux will start reconciling the cluster automatically.
+
+## 6. Configure SOPS + Age for secrets
+SOPS is the tool used to encrypt secrets. It uses GPG to encrypt the secrets, and the public key is stored in the `.sops.yaml` file.
+So secrets are commiteable and secure.
 
 ```bash
 ./setup-sops.sh
 ```
 
-## Setup Cloudflare Tunnel
+It check if the `age.key` (ignored on .gitignored) file exists, if not, it generates a new one.
+It also creates a `.sops.yaml` file with the public key of the age key.
 
-### Install cloudflared
 
+## 7. Setup Cloudflare Tunnel
+
+### 7.1 Install cloudflared on local machine
 ```bash
 # Download latest version
 curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
@@ -197,4 +218,228 @@ sudo dpkg -i cloudflared.deb
 
 # Verify
 cloudflared --version
+```
+
+## 7.2 Create tunnel
+```bash
+# It opens a browser to authenticate, open on your machine
+cloudflared tunnel login
+
+cloudflared tunnel create YOUR-TUNNEL-NAME
+# Example: cloudflared tunnel create xuty-dev
+```
+
+Save:
+ - Tunnel UUID (it appears in output)
+ - File `~/.cloudflared/UUID.json`
+
+## 7.3 Configure DNS on Cloudflare Dashboard
+Go to DNS -> Records of your domain, and create a new record:
+
+| Type  | Name | Content                   | Proxy     |
+| ----- | ---- | ------------------------- | --------- |
+| CNAME | `@`  | `<UUID>.cfargotunnel.com` | ✅ Proxied |
+| CNAME | `*`  | `<UUID>.cfargotunnel.com` | ✅ Proxied |
+
+- `@` = root domain (e.g. xuty.dev). Cloudflare use *CNAME Flattening*
+- `*` = wildcard subdomain (e.g. blog.xuty.dev), covers all subdomains
+- *Proxied* = Cloudflare manages SSL and cache
+
+## 7.4 Encrypt credentials with SOPS
+```bash
+bash sops-secret.sh --name cloudflared-credentials -N cloudflared -f ~/.cloudflared/UUID.json=credentials.json
+```
+
+Note: Name `cloudflared-credentials` will be referenced on `deployment.yaml`
+
+
+## 7.5 Deploy on Kubernetes
+Create manifests for the tunnel:, Flux will manage it via GitOps.
+
+### 7.5.1 Namespace
+Create it on `infrastructure/cloudflared/namespace.yaml`
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cloudflared
+```
+
+### 7.5.2 ConfigMap
+Create it on `infrastructure/cloudflared/configmap.yaml`
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudflared-config # <-- This will be referenced by the deployment
+  namespace: cloudflared
+data:
+  config.yaml: |
+    tunnel: <TU_TUNNEL_UUID>
+    credentials-file: /etc/cloudflared/creds/credentials.json
+    metrics: 0.0.0.0:2000
+    no-autoupdate: true
+
+    ingress:
+      # Dominio raíz - tu página personal
+      - hostname: xuty.dev
+        service: http://traefik.kube-system.svc.cluster.local:80
+        originRequest:
+          noTLSVerify: true
+
+      # Blog
+      - hostname: blog.xuty.dev
+        service: http://traefik.kube-system.svc.cluster.local:80
+        originRequest:
+          noTLSVerify: true
+
+      # Any future subdomain
+      - hostname: "*.xuty.dev"
+        service: http://traefik.kube-system.svc.cluster.local:80
+        originRequest:
+          noTLSVerify: true
+
+      # Fallback 404
+      - service: http_status:404
+```
+Basic explanation about `service`:
+- `traefik` = Traefik Ingress Controller (default of k3s)
+- `kube-system` = Kubernetes system namespace
+- `svc` = Kind of Kubernetes Resource (Service)
+- `cluster.local` = Internal TLD DNS of the cluster
+- `80` = Port of the service
+
+### 7.5.3 Deployment
+Create it on `infrastructure/cloudflared/deployment.yaml`
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  namespace: cloudflared
+  labels:
+    app: cloudflared
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cloudflared
+  template:
+    metadata:
+      labels:
+        app: cloudflared
+    spec:
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:latest
+          args:
+            - tunnel
+            - --config
+            - /etc/cloudflared/config.yaml # ConfigMap configured before
+            - run
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/cloudflared
+              readOnly: true
+            - name: creds
+              mountPath: /etc/cloudflared/creds
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 2000
+            failureThreshold: 1
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 2000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: config
+          configMap:
+            name: cloudflared-config
+        - name: creds
+          secret:
+            secretName: cloudflared-credentials
+```
+
+### 7.5.4 Kustomization (Kustomize)
+Create it on `infrastructure/cloudflared/kustomization.yaml`, it references the manifests created before.
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - deployment.yaml
+```
+
+### 7.5.5 Reference it on infrastructure
+Create it on `infrastructure/kustomization.yaml`
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - cloudflared
+```
+
+## 7.6 Flux reconciliation
+Flux will reconcile the cluster automatically.
+
+## 8. Configure Kustomizations (Flux)
+
+### 8.1 Infrastructure
+Create it on `clusters/homelab/flux-system/kustomization.yaml`
+```yaml
+apiVersion: kustomize.toolkit.fluxcd.io/v1 # <-- Check is not Kubernetes Kustomize
+kind: Kustomization
+metadata:
+  name: infrastructure
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./infrastructure
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-age
+```
+
+### 8.2 Apps
+Create it on `clusters/homelab/flux-system/kustomization.yaml`
+
+```yaml
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: apps
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./apps
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  dependsOn:
+    - name: infrastructure
+#   decryption: # Uncomment if apps have secrets
+#       provider: sops
+#       secretRef:
+#       name: sops-age
 ```
