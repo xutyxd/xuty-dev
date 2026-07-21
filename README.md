@@ -185,9 +185,7 @@ git commit -m "feat(flux): add flux system manifests"
 git push origin main
 
 # Then apply and never do an apply again
-kubectl apply -f clusters/homelab/flux-system/gotk-components.yaml
-kubectl apply -f clusters/homelab/flux-system/gotk-sync.yaml
-kubectl apply -f clusters/homelab/flux-system/kustomization.yaml
+kubectl apply -f clusters/homelab/flux-system
 ```
 <!-- We apply `--export` to generate FluxCD bootstrap manifest, so it can be applied to the cluster manually.
 
