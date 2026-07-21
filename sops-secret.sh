@@ -236,10 +236,11 @@ echo -e "${BLUE}🔒 Encrypting with SOPS + Age...${RESET}"
 mkdir -p "$OUTPUT_DIR"
 OUTPUT_FILE="$OUTPUT_DIR/$SECRET_NAME.yaml"
 
-sops --encrypt --in-place "$TMP_SECRET"
-
-# Mover al destino final
+# Move to secret destination
 mv "$TMP_SECRET" "$OUTPUT_FILE"
+
+sops --encrypt --in-place "$OUTPUT_FILE"
+
 
 # ───--- Clean ---────────────────────────────────────────────────────────
 rm -rf "$TMP_DIR"
