@@ -20,11 +20,9 @@ spec:
           image: cloudflare/cloudflared:latest
           args:
             - tunnel
-            - --token
-            - $(CLOUDFLARE_TOKEN)
             - run
           env:
-          - name: CLOUDFLARE_TOKEN
+          - name: TUNNEL_TOKEN
             valueFrom:
               secretKeyRef:
                 name: cloudflared-credentials
