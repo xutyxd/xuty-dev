@@ -162,30 +162,30 @@ So secrets are commiteable and secure.
 Assuming you have a SSH configured agains git repository, you can use the following command to bootstrap FluxCD:
 ```bash
 # Create directory (already on repo)
-mkdir -p clusters/homelab/flux-system
+mkdir -p bootstrap/flux-system
 
 # Generate manifests
-flux install --export > clusters/homelab/flux-system/gotk-components.yaml
+flux install --export > bootstrap/flux-system/gotk-components.yaml
 
 flux create source git flux-system \
   --url=ssh://git@github.com/xutyxd/xuty-dev.git \
   --branch=main \
-  --export > clusters/homelab/flux-system/gotk-sync.yaml
+  --export > bootstrap/flux-system/gotk-sync.yaml
 
 flux create kustomization flux-system \
   --source=GitRepository/flux-system \
   --path=./clusters/homelab \
   --prune=true \
   --interval=10m \
-  --export > clusters/homelab/flux-system/kustomization.yaml
+  --export > bootstrap/flux-system/kustomization.yaml
 
 # Commit to Git
-git add clusters/homelab/flux-system/
+git add bootstrap/flux-system/
 git commit -m "feat(flux): add flux system manifests"
 git push origin main
 
 # Then apply and never do an apply again
-kubectl apply -f clusters/homelab/flux-system
+kubectl apply -f bootstrap/flux-system
 ```
 <!-- We apply `--export` to generate FluxCD bootstrap manifest, so it can be applied to the cluster manually.
 
