@@ -159,7 +159,37 @@ So secrets are commiteable and secure.
 ```
 
 ## 5. Setup FluxCD (GitOps)
-We apply `--export` to generate FluxCD bootstrap manifest, so it can be applied to the cluster manually.
+Assuming you have a SSH configured agains git repository, you can use the following command to bootstrap FluxCD:
+```bash
+# Create directory (already on repo)
+mkdir -p clusters/homelab/flux-system
+
+# Generate manifests
+flux install --export > clusters/homelab/flux-system/gotk-components.yaml
+
+flux create source git flux-system \
+  --url=ssh://git@github.com/xutyxd/xuty-dev.git \
+  --branch=main \
+  --export > clusters/homelab/flux-system/gotk-sync.yaml
+
+flux create kustomization flux-system \
+  --source=GitRepository/flux-system \
+  --path=./clusters/homelab \
+  --prune=true \
+  --interval=10m \
+  --export > clusters/homelab/flux-system/kustomization.yaml
+
+# Commit to Git
+git add clusters/homelab/flux-system/
+git commit -m "feat(flux): add flux system manifests"
+git push origin main
+
+# Then apply and never do an apply again
+kubectl apply -f clusters/homelab/flux-system/gotk-components.yaml
+kubectl apply -f clusters/homelab/flux-system/gotk-sync.yaml
+kubectl apply -f clusters/homelab/flux-system/kustomization.yaml
+```
+<!-- We apply `--export` to generate FluxCD bootstrap manifest, so it can be applied to the cluster manually.
 
 ```bash
 # Clone and move to the repo
@@ -173,9 +203,9 @@ flux bootstrap github \
   --branch=main \
   --private=false \
   --path=clusters/homelab/flux-system \
-  --export > ./clusters/homelab/flux-system/bootstrap.yaml
+  --export > ./clusters/homelab/flux-system/bootstrap.yaml \
   --personal
-```
+``` -->
 
 It will generate a `bootstrap.yaml` with:
  - Namespace `flux-system`
