@@ -151,12 +151,16 @@ curl -s https://fluxcd.io/install.sh | sudo bash
 sudo apt install age
 ```
 
-## 4. Setup SOPS
+## 4. Configure SOPS + Age for secrets
 SOPS is the tool used to encrypt secrets. It uses GPG to encrypt the secrets, and the public key is stored in the `.sops.yaml` file.
 So secrets are commiteable and secure.
+
 ```bash
 ./setup-sops.sh
 ```
+
+It check if the `age.key` (ignored on .gitignored) file exists, if not, it generates a new one.
+It also creates a `.sops.yaml` file with the public key of the age key.
 
 ## 5. Setup FluxCD (GitOps)
 Assuming you have a SSH configured agains git repository, you can use the following command to bootstrap FluxCD:
@@ -190,6 +194,12 @@ kubectl apply -f bootstrap/flux-system/gotk-components.yaml
 
 # Wait for Flux to be ready
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/part-of=flux -n flux-system --timeout=120s
+# Create secret with SOPS
+cat age.key |
+kubectl create secret generic sops-age \
+  --namespace=flux-system \
+  --from-file=age.agekey=/dev/stdin
+
 
 # Then apply manifests
 kubectl apply -f bootstrap/flux-system/gotk-sync.yaml
@@ -197,17 +207,6 @@ kubectl apply -f bootstrap/flux-system/kustomization.yaml
 ```
 
 After this, Flux will start reconciling the cluster automatically.
-
-## 6. Configure SOPS + Age for secrets
-SOPS is the tool used to encrypt secrets. It uses GPG to encrypt the secrets, and the public key is stored in the `.sops.yaml` file.
-So secrets are commiteable and secure.
-
-```bash
-./setup-sops.sh
-```
-
-It check if the `age.key` (ignored on .gitignored) file exists, if not, it generates a new one.
-It also creates a `.sops.yaml` file with the public key of the age key.
 
 
 ## 7. Setup Cloudflare Tunnel
