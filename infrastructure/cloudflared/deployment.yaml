@@ -36,13 +36,6 @@ spec:
             limits:
               memory: "128Mi"
               cpu: "200m"
-          volumeMounts:
-            - name: config
-              mountPath: /etc/cloudflared
-              readOnly: true
-            - name: creds
-              mountPath: /etc/cloudflared/creds
-              readOnly: true
           livenessProbe:
             httpGet:
               path: /ready
