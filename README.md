@@ -168,7 +168,7 @@ mkdir -p bootstrap/flux-system
 flux install --export > bootstrap/flux-system/gotk-components.yaml
 
 flux create source git flux-system \
-  --url=ssh://git@github.com/xutyxd/xuty-dev.git \
+  --url=https://github.com/xutyxd/xuty-dev.git \
   --branch=main \
   --export > bootstrap/flux-system/gotk-sync.yaml
 
@@ -185,41 +185,17 @@ git commit -m "feat(flux): add flux system manifests"
 git push origin main
 
 # Then apply and never do an apply again
-kubectl apply -f bootstrap/flux-system
+# Apply only components (CRDs + controladores)
+kubectl apply -f bootstrap/flux-system/gotk-components.yaml
+
+# Wait for Flux to be ready
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/part-of=flux -n flux-system --timeout=120s
+
+# Then apply manifests
+kubectl apply -f bootstrap/flux-system/gotk-sync.yaml
+kubectl apply -f bootstrap/flux-system/kustomization.yaml
 ```
-<!-- We apply `--export` to generate FluxCD bootstrap manifest, so it can be applied to the cluster manually.
 
-```bash
-# Clone and move to the repo
-git clone https://github.com/xutyxd/xuty-dev.git
-cd xuty-dev
-
-# Bootstrap Flux
-flux bootstrap github \
-  --owner=xutyxd \
-  --repository=xuty-dev \
-  --branch=main \
-  --private=false \
-  --path=clusters/homelab/flux-system \
-  --export > ./clusters/homelab/flux-system/bootstrap.yaml \
-  --personal
-``` -->
-
-It will generate a `bootstrap.yaml` with:
- - Namespace `flux-system`
- - Deployments of 4 flux components
- - `GitRepository` aiming to the `main` branch of the repo
- - `Kustomization` to reconcile `clusters/homelab/flux-system`
-
-```bash
-# Commit to Git
-git add clusters/homelab/flux-system/bootstrap.yaml
-git commit -m "bootstrap: add flux system manifests"
-git push origin main
-
-# Apply ONLY ONCE on cluster to start Flux
-kubectl apply -f clusters/homelab/flux-system/bootstrap.yaml
-```
 After this, Flux will start reconciling the cluster automatically.
 
 ## 6. Configure SOPS + Age for secrets
