@@ -20,9 +20,15 @@ spec:
           image: cloudflare/cloudflared:latest
           args:
             - tunnel
-            - --config
-            - /etc/cloudflared/config.yaml
+            - --token
+            - $(CLOUDFLARE_TOKEN)
             - run
+          env:
+          - name: CLOUDFLARE_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: cloudflared-credentials
+                key: CLOUDFLARE_TOKEN
           resources:
             requests:
               memory: "32Mi"
@@ -50,10 +56,3 @@ spec:
               port: 2000
             initialDelaySeconds: 5
             periodSeconds: 5
-      volumes:
-        - name: config
-          configMap:
-            name: cloudflared-config
-        - name: creds
-          secret:
-            secretName: cloudflared-credentials
