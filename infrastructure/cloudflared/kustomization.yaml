@@ -5,6 +5,6 @@ namespace: cloudflared
 
 resources:
   - namespace.yaml
-  # - deployment.yaml
-  - daemonset.yaml
+  - deployment.yaml
+  # - daemonset.yaml
   - ../../secrets/cloudflared-credentials.yaml
