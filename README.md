@@ -1,4 +1,4 @@
-# Xuty dev (xuty.dev)
+# [xuty.dev](xuty.dev)
 
 A personal homelab built on GitOps and Infrastructure as Code (IaC). It started as a single k3s node completely managed by FluxCD. 
 
@@ -45,40 +45,38 @@ Usuario ──HTTPS──> Cloudflare Edge ──HTTPS──> Cloudflare Tunnel
 
 ```
 xuty-k8s/
+├── bootstrap/
+├─────── flux-system/                 # Flux installation (bootstrap)
+│
 ├── clusters/
-│   └── homelab/                 # The "cluster"
-│       ├── flux-system/         # Flux installation (bootstrap)
-│       ├── infrastructure/
-│       │   ├── kustomization.yaml
-│       │   ├── cloudflared/
-│       │   ├── traefik/
-│       │   └── sources/         # HelmRepositories, OCIRepositories
-│       └── apps/
-│           ├── kustomization.yaml
-│           ├── homepage/
-│           └── blog/
+│   └── homelab/                      # The "cluster"
+│       ├── apps.yaml                 # Flux Kustomization
+│       └── infrastructure.yaml       # Flux Kustomization
+│
 ├── infrastructure/
-│   ├── cloudflared/
-│   │   ├── deployment.yaml
-│   │   ├── configmap.yaml
-│   │   └── kustomization.yaml
-│   └── sources/
-│       └── cloudflare-helm.yaml  # If using Helm charts
+│   └── cloudflared/
+│       ├── deployment.yaml
+│       ├── configmap.yaml
+│       └── kustomization.yaml
+│
 ├── apps/
-│   ├── base/                     # Base resources reusable
+│   ├── base/                         # Base resources reusable
 │   │   ├── deployment.yaml
 │   │   ├── service.yaml
 │   │   └── ingress.yaml
 │   ├── homepage/
-│   │   ├── kustomization.yaml    # Base + patches
+│   │   ├── kustomization.yaml        # Base + patches
 │   │   ├── namespace.yaml
-│   │   └── ingress-patch.yaml    # host: xuty.dev
+│   │   └── ingress-patch.yaml        # host: xuty.dev
 │   └── blog/
 │       ├── kustomization.yaml
 │       ├── namespace.yaml
-│       └── ingress-patch.yaml    # host: blog.xuty.dev
-└── secrets/
-    └── .sops.yaml               # Encryption config for SOPS
+│       └── ingress-patch.yaml        # host: blog.xuty.dev
+│
+├── secrets/
+│   └── cloudflared-credentials.yaml  # Secure encrypted credentials for Cloudflare Tunnel
+│
+└── .sops.yaml                        # Encryption config for SOPS
 ```
 
 ## Stack
@@ -211,55 +209,34 @@ After this, Flux will start reconciling the cluster automatically.
 
 ## 7. Setup Cloudflare Tunnel
 
-### 7.1 Install cloudflared on local machine
-```bash
-# Download latest version
-curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+### 7.1 Create a tunnel on Cloudflare Dashboard
+Go to Cloudflare Zero Trust -> Networks -> Tunnels & Mesh -> Create a tunnel -> Cloudflare Tunnel
+Then name it, and copy token: `eyJhIjoiNT...`, it will be used on [7.3 step](#73-encrypt-credentials-with-sops).
 
-# Install
-sudo dpkg -i cloudflared.deb
+Configure DNS like this:
 
-# Verify
-cloudflared --version
-```
+| Subdomain | Domain        | Service - Type     | Service - URL                                                        |
+| --------- | ------------- | ------------------ | -------------------------------------------------------------------- | 
+| empty     | `your.domain` | HTTP               | `http://your-ingress-controller.your-namespace.svc.cluster.local:80` |
+| `*@*`     | `your.domain` | HTTP               | `http://your-ingress-controller.your-namespace.svc.cluster.local:80` |
 
-## 7.2 Create tunnel
-```bash
-# It opens a browser to authenticate, open on your machine
-cloudflared tunnel login
-
-cloudflared tunnel create YOUR-TUNNEL-NAME
-# Example: cloudflared tunnel create xuty-dev
-```
-
-Save:
- - Tunnel UUID (it appears in output)
- - File `~/.cloudflared/UUID.json`
-
-## 7.3 Configure DNS on Cloudflare Dashboard
-Go to DNS -> Records of your domain, and create a new record:
-
-| Type  | Name | Content                   | Proxy     |
-| ----- | ---- | ------------------------- | --------- |
-| CNAME | `@`  | `<UUID>.cfargotunnel.com` | ✅ Proxied |
-| CNAME | `*`  | `<UUID>.cfargotunnel.com` | ✅ Proxied |
-
-- `@` = root domain (e.g. xuty.dev). Cloudflare use *CNAME Flattening*
+- `` = root domain (e.g. xuty.dev). Cloudflare use *CNAME Flattening*
 - `*` = wildcard subdomain (e.g. blog.xuty.dev), covers all subdomains
-- *Proxied* = Cloudflare manages SSL and cache
 
-## 7.4 Encrypt credentials with SOPS
+Review DNS records of your domain and check both are created and proxied.
+
+### 7.2 Encrypt credentials with SOPS
+Get token saved before, and encrypt it with SOPS:
 ```bash
-bash sops-secret.sh --name cloudflared-credentials -N cloudflared -f ~/.cloudflared/UUID.json=credentials.json
+bash ./sops-secret.sh --name cloudflared-credentials -N cloudflared -l CLOUDFLARE_TOKEN=eyJhIjoiNTQ5NTQ...
 ```
 
 Note: Name `cloudflared-credentials` will be referenced on `deployment.yaml`
 
+### 7.3 Configure infrastructure
+Create manifests for the tunnel, Flux will manage it via GitOps.
 
-## 7.5 Deploy on Kubernetes
-Create manifests for the tunnel:, Flux will manage it via GitOps.
-
-### 7.5.1 Namespace
+#### 7.3.1 Namespace
 Create it on `infrastructure/cloudflared/namespace.yaml`
 ```yaml
 apiVersion: v1
@@ -268,51 +245,7 @@ metadata:
   name: cloudflared
 ```
 
-### 7.5.2 ConfigMap
-Create it on `infrastructure/cloudflared/configmap.yaml`
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: cloudflared-config # <-- This will be referenced by the deployment
-  namespace: cloudflared
-data:
-  config.yaml: |
-    tunnel: <TU_TUNNEL_UUID>
-    credentials-file: /etc/cloudflared/creds/credentials.json
-    metrics: 0.0.0.0:2000
-    no-autoupdate: true
-
-    ingress:
-      # Dominio raíz - tu página personal
-      - hostname: xuty.dev
-        service: http://traefik.kube-system.svc.cluster.local:80
-        originRequest:
-          noTLSVerify: true
-
-      # Blog
-      - hostname: blog.xuty.dev
-        service: http://traefik.kube-system.svc.cluster.local:80
-        originRequest:
-          noTLSVerify: true
-
-      # Any future subdomain
-      - hostname: "*.xuty.dev"
-        service: http://traefik.kube-system.svc.cluster.local:80
-        originRequest:
-          noTLSVerify: true
-
-      # Fallback 404
-      - service: http_status:404
-```
-Basic explanation about `service`:
-- `traefik` = Traefik Ingress Controller (default of k3s)
-- `kube-system` = Kubernetes system namespace
-- `svc` = Kind of Kubernetes Resource (Service)
-- `cluster.local` = Internal TLD DNS of the cluster
-- `80` = Port of the service
-
-### 7.5.3 Deployment
+#### 7.3.2 Deployment
 Create it on `infrastructure/cloudflared/deployment.yaml`
 ```yaml
 apiVersion: apps/v1
@@ -337,57 +270,42 @@ spec:
           image: cloudflare/cloudflared:latest
           args:
             - tunnel
-            - --config
-            - /etc/cloudflared/config.yaml # ConfigMap configured before
+            - --no-autoupdate
+            - --metrics
+            - 0.0.0.0:60123
             - run
-          resources:
-            requests:
-              memory: "32Mi"
-              cpu: "50m"
-            limits:
-              memory: "128Mi"
-              cpu: "200m"
-          volumeMounts:
-            - name: config
-              mountPath: /etc/cloudflared
-              readOnly: true
-            - name: creds
-              mountPath: /etc/cloudflared/creds
-              readOnly: true
+            - --token
+            - $(CLOUDFLARE_TOKEN)
           livenessProbe:
             httpGet:
-              path: /ready
-              port: 2000
-            failureThreshold: 1
-            initialDelaySeconds: 10
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /ready
-              port: 2000
+              path: /metrics
+              port: metrics
+            failureThreshold: 3
             initialDelaySeconds: 5
             periodSeconds: 5
-      volumes:
-        - name: config
-          configMap:
-            name: cloudflared-config
-        - name: creds
-          secret:
-            secretName: cloudflared-credentials
+          ports:
+            - containerPort: 60123
+              name: metrics
+          env:
+            - name: CLOUDFLARE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflared-credentials
+                  key: CLOUDFLARE_TOKEN
 ```
 
-### 7.5.4 Kustomization (Kustomize)
+#### 7.3.3 Kustomization (Kustomize)
 Create it on `infrastructure/cloudflared/kustomization.yaml`, it references the manifests created before.
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - namespace.yaml
-  - configmap.yaml
   - deployment.yaml
+  - ../../secrets/cloudflared-credentials.yaml # <-- Created before and referenced on deployment.yaml
 ```
 
-### 7.5.5 Reference it on infrastructure
+### 7.3.4 Reference it on infrastructure
 Create it on `infrastructure/kustomization.yaml`
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -397,52 +315,6 @@ resources:
   - cloudflared
 ```
 
-## 7.6 Flux reconciliation
-Flux will reconcile the cluster automatically.
+### 7.4 Deploy on Kubernetes
+Create a commit with the manifests created before and push to Git, Flux will do the magic.
 
-## 8. Configure Kustomizations (Flux)
-
-### 8.1 Infrastructure
-Create it on `clusters/homelab/flux-system/kustomization.yaml`
-```yaml
-apiVersion: kustomize.toolkit.fluxcd.io/v1 # <-- Check is not Kubernetes Kustomize
-kind: Kustomization
-metadata:
-  name: infrastructure
-  namespace: flux-system
-spec:
-  interval: 10m
-  path: ./infrastructure
-  prune: true
-  sourceRef:
-    kind: GitRepository
-    name: flux-system
-  decryption:
-    provider: sops
-    secretRef:
-      name: sops-age
-```
-
-### 8.2 Apps
-Create it on `clusters/homelab/flux-system/kustomization.yaml`
-
-```yaml
-apiVersion: kustomize.toolkit.fluxcd.io/v1
-kind: Kustomization
-metadata:
-  name: apps
-  namespace: flux-system
-spec:
-  interval: 10m
-  path: ./apps
-  prune: true
-  sourceRef:
-    kind: GitRepository
-    name: flux-system
-  dependsOn:
-    - name: infrastructure
-#   decryption: # Uncomment if apps have secrets
-#       provider: sops
-#       secretRef:
-#       name: sops-age
-```
