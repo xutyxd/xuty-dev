@@ -1,4 +1,4 @@
-# [xuty.dev](xuty.dev)
+# [xuty.dev](https://xuty.dev)
 
 A personal homelab built on GitOps and Infrastructure as Code (IaC). It started as a single k3s node completely managed by FluxCD. 
 
