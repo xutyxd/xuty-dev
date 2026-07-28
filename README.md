@@ -359,7 +359,7 @@ patches:
 
 
 ### 8.4 Namespace
-Create a `namespace.yml` file on `apps/xuty-dev/` with the following content:
+Create a `namespace.yaml` file on `apps/xuty-dev/` with the following content:
 
 ```yaml
 apiVersion: v1
