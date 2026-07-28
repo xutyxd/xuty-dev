@@ -318,3 +318,101 @@ resources:
 ### 7.4 Deploy on Kubernetes
 Create a commit with the manifests created before and push to Git, Flux will do the magic.
 
+## 8. Add a new app
+
+### 8.1 Create a new app
+Create a new directory under `apps/` with the name of the app, e.g. `apps/xuty-dev/`
+For this example, we will use my front page `xuty-dev`.
+
+### 8.2 Create structure overlay
+```
+apps/
+└── xuty-dev/                       # ← New overlay
+    ├── kustomization.yaml
+    ├── namespace.yaml
+    ├── deployment-patch.yaml
+    └── ingress-patch.yaml
+```
+
+### 8.3 Create kustomization overlay
+Create a `kustomization.yaml` file on `apps/xuty-dev/` with the following content:
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: xuty-dev
+
+resources:
+  - ../base                     # Reference to base resources
+  - namespace.yaml
+
+namePrefix: xuty-dev-           # Name prefix for all resources, where magic happens
+
+commonLabels:                   # Labels to be applied to all resources
+  app: xuty-dev
+
+patches:
+  - path: deployment-patch.yaml
+  - path: ingress-patch.yaml
+```
+
+
+### 8.4 Namespace
+Create a `namespace.yml` file on `apps/xuty-dev/` with the following content:
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: xuty-dev
+```
+
+### 8.5 Deployment
+Create a `deployment-patch.yaml` file on `apps/xuty-dev/` with the following content:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+spec:
+  template:
+    spec:
+      containers:
+        - name: app
+          image: xutyxd/xuty-dev:1.1.0  # In future, this will be automated
+          imagePullPolicy: IfNotPresent
+```
+
+### 8.6 Ingress
+Create a `ingress-patch.yaml` file on `apps/xuty-dev/` with the following content:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app
+spec:
+  rules:
+    - host: xuty.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: xuty-dev-app
+                port:
+                  number: 80
+```
+
+### 8.7 Reference it on apps
+Update `apps/kustomization.yaml` with the following content:
+
+```yaml
+resources:
+  - other-app
+  - xuty-dev   # Add xuty-dev here
+```
+
