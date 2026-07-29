@@ -381,7 +381,7 @@ spec:
     spec:
       containers:
         - name: app
-          image: xutyxd/xuty-dev:1.1.0  # In future, this will be automated
+          image: xutyxd/xuty.dev:1.1.0  # In future, this will be automated
           imagePullPolicy: IfNotPresent
 ```
 
@@ -416,3 +416,201 @@ resources:
   - xuty-dev   # Add xuty-dev here
 ```
 
+## 9. Image automation
+
+### 9.1 Verify Image Automation Controllers
+
+```bash
+kubectl get deployment -n flux-system | grep image
+```
+If empty, update flux controllers with new ones:
+
+```bash
+flux install \
+  --components-extra=image-reflector-controller,image-automation-controller \
+  --export > bootstrap/flux-system/gotk-components.yaml
+```
+Commit and push to Git, Flux will do the magic.
+
+```bash
+git add bootstrap/flux-system/gotk-components.yaml
+git commit -m "feat(flux): add image automation controllers"
+git push origin main
+```
+
+### 9.2 Create an Encrypted GitHub PAT Secret
+
+A PAT is needed by `ImageUpdateAutomation` to push back to GitHub with the new image version.
+
+Create a secret with the PAT, and encrypt it with SOPS:
+```bash
+bash ./sops-secret.sh --name github-pat -N flux-system -l username=USERNAME -l password=PASSWORD
+```
+
+### 9.3 Update the GitRepository for Write Access
+
+Update the `/bootstrap/flux-system/gotk-sync` to allow write access to the repository:
+
+```yaml
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: flux-system
+  namespace: flux-system
+spec:
+  interval: 1m0s
+  ref:
+    branch: main
+  url: https://github.com/xutyxd/xuty-dev.git
+secretRef:
+    name: github-pat          # <-- ADD THIS
+```
+
+Commit and push to Git, Flux will do the magic.
+
+```bash
+git add bootstrap/flux-system/gotk-sync.yaml
+git commit -m "feat(flux): add git credentials for image automation"
+git push origin main
+```
+
+### 9.4 Create an Image Update Automation
+
+Create a new directory for global image automation resources:
+
+```bash
+mkdir -p infrastructure/image-automation
+```
+
+Create a `kustomization.yaml` file on `infrastructure/image-automation/` with the following content:
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - image-update-automation.yaml
+  - xuty-dev-policy.yaml  # <-- this will be the example
+```
+
+Create a `image-update-automation.yaml` file on `infrastructure/image-automation/` with the following content:
+
+```yaml
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageUpdateAutomation
+metadata:
+  name: xuty-dev
+  namespace: flux-system
+spec:
+  interval: 5m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  git:
+    checkout:
+      ref:
+        branch: main
+    commit:
+      author:
+        name: Flux Bot
+        email: flux@xuty.dev
+      messageTemplate: "chore(images): automated update [{{ range .Updated.Images }}{{.}} {{end}}]"
+    push:
+      branch: main
+  update:
+    path: ./apps
+    strategy: Setters
+```
+
+**Note:** `strategy: Setters` tells Flux to look for `# {"$imagepolicy": ...}` markers in your YAML files.
+
+### 9.5 Create an Image Policy for xuty-dev
+
+Create a `xuty-dev-policy.yaml` file on `infrastructure/image-automation/` with the following content:
+
+```yaml
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
+  name: xuty-dev
+  namespace: flux-system
+spec:
+  image: xutyxd/xuty.dev
+  interval: 5m
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: xuty-dev
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: xuty-dev
+  policy:
+    semver:
+      range: ">=1.0.0"
+```
+
+### 9.6 Wire it on infrastructure
+
+Update `infrastructure/kustomization.yaml` with the following content:
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - cloudflared
+  - image-automation
+```
+
+### 9.7 Add Image Policy Markers to your YAML files
+
+Add `# {"$imagepolicy": "xuty-dev:1.0.0"}` to your YAML files, e.g.:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+spec:
+  template:
+    spec:
+      containers:
+        - name: app
+          image: xutyxd/xuty.dev:1.1.0 # {"$imagepolicy": "flux-system:xuty-dev"}
+          imagePullPolicy: IfNotPresent
+```
+
+### 9.8 Commit and push to Git
+
+Like other steps, commit and push to Git, Flux will do the magic.
+
+```bash
+git add .
+git commit -m "feat(image-automation): add image automation"
+git push origin main
+```
+Flux will reconcile the new resources. Within a few minutes, you should see:
+ - `ImageRepository` scanning you registry
+ - `ImagePolicy` selecting the latest semver tag
+ - `ImageUpdateAutomation` watching for changes
+
+### 9.9 Verify everything is working
+
+```bash
+# Check image repositories
+flux get image repository
+
+# Check image policies (should show the selected latest tag)
+flux get image policy
+
+# Check the automation status
+flux get image update
+
+# Check controller logs if something is wrong
+kubectl logs -n flux-system deployment/image-reflector-controller -f
+kubectl logs -n flux-system deployment/image-automation-controller -f
+```
