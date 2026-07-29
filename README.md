@@ -463,7 +463,7 @@ spec:
   ref:
     branch: main
   url: https://github.com/xutyxd/xuty-dev.git
-secretRef:
+  secretRef:
     name: github-pat          # <-- ADD THIS
 ```
 
