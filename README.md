@@ -593,7 +593,12 @@ git add .
 git commit -m "feat(image-automation): add image automation"
 git push origin main
 ```
-Flux will reconcile the new resources. Within a few minutes, you should see:
+Flux will *not* reconcile itself, so, you need to do it manually:
+```bash
+kubectl apply -f bootstrap/flux-system/gotk-components.yaml
+```
+
+Within a few minutes, you should see:
  - `ImageRepository` scanning you registry
  - `ImagePolicy` selecting the latest semver tag
  - `ImageUpdateAutomation` watching for changes
