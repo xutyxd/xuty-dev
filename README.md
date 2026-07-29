@@ -44,7 +44,7 @@ Usuario ──HTTPS──> Cloudflare Edge ──HTTPS──> Cloudflare Tunnel
 ## Code Structure
 
 ```
-xuty-k8s/
+xuty-dev/
 ├── bootstrap/
 ├─────── flux-system/                 # Flux installation (bootstrap)
 │
