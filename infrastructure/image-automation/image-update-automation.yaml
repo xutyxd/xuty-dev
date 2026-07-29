@@ -16,7 +16,7 @@ spec:
       author:
         name: Flux Bot
         email: flux@xuty.dev
-      messageTemplate: "chore(images): automated update [{{ range .Changed.Images }}{{.}} {{end}}]"
+      messageTemplate: "chore(images): automated update of {{ .AutomationObject.Name }}"
     push:
       branch: main
   update:
