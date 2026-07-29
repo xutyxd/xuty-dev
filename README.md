@@ -531,7 +531,7 @@ Create a `xuty-dev-policy.yaml` file on `infrastructure/image-automation/` with 
 
 ```yaml
 ---
-apiVersion: image.toolkit.fluxcd.io/v1beta2
+apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
 metadata:
   name: xuty-dev
@@ -540,7 +540,7 @@ spec:
   image: xutyxd/xuty.dev
   interval: 5m
 ---
-apiVersion: image.toolkit.fluxcd.io/v1beta2
+apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImagePolicy
 metadata:
   name: xuty-dev
