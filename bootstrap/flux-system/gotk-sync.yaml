@@ -10,4 +10,4 @@ spec:
     branch: main
   url: https://github.com/xutyxd/xuty-dev.git
   secretRef:
-      name: github-pat          # <-- ADD THIS
+    name: github-pat          # <-- ADD THIS
