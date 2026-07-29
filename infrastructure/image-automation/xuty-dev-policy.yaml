@@ -5,7 +5,7 @@ metadata:
   name: xuty-dev
   namespace: flux-system
 spec:
-  image: xutyxd/xuty-dev
+  image: xutyxd/xuty.dev
   interval: 5m
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
