@@ -515,7 +515,7 @@ spec:
       author:
         name: Flux Bot
         email: flux@xuty.dev
-      messageTemplate: "chore(images): automated update [{{ range .Updated.Images }}{{.}} {{end}}]"
+      messageTemplate: "chore(images): automated update [{{ range .Changed.Images }}{{.}} {{end}}]"
     push:
       branch: main
   update:
