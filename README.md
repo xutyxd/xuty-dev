@@ -207,11 +207,11 @@ kubectl apply -f bootstrap/flux-system/kustomization.yaml
 After this, Flux will start reconciling the cluster automatically.
 
 
-## 7. Setup Cloudflare Tunnel
+## 6. Setup Cloudflare Tunnel
 
-### 7.1 Create a tunnel on Cloudflare Dashboard
+### 6.1 Create a tunnel on Cloudflare Dashboard
 Go to Cloudflare Zero Trust -> Networks -> Tunnels & Mesh -> Create a tunnel -> Cloudflare Tunnel
-Then name it, and copy token: `eyJhIjoiNT...`, it will be used on [7.3 step](#73-encrypt-credentials-with-sops).
+Then name it, and copy token: `eyJhIjoiNT...`, it will be used on [6.3 step](#73-encrypt-credentials-with-sops).
 
 Configure DNS like this:
 
@@ -225,7 +225,7 @@ Configure DNS like this:
 
 Review DNS records of your domain and check both are created and proxied.
 
-### 7.2 Encrypt credentials with SOPS
+### 6.2 Encrypt credentials with SOPS
 Get token saved before, and encrypt it with SOPS:
 ```bash
 bash ./sops-secret.sh --name cloudflared-credentials -N cloudflared -l CLOUDFLARE_TOKEN=eyJhIjoiNTQ5NTQ...
@@ -233,10 +233,10 @@ bash ./sops-secret.sh --name cloudflared-credentials -N cloudflared -l CLOUDFLAR
 
 Note: Name `cloudflared-credentials` will be referenced on `deployment.yaml`
 
-### 7.3 Configure infrastructure
+### 6.3 Configure infrastructure
 Create manifests for the tunnel, Flux will manage it via GitOps.
 
-#### 7.3.1 Namespace
+#### 6.3.1 Namespace
 Create it on `infrastructure/cloudflared/namespace.yaml`
 ```yaml
 apiVersion: v1
@@ -245,7 +245,7 @@ metadata:
   name: cloudflared
 ```
 
-#### 7.3.2 Deployment
+#### 6.3.2 Deployment
 Create it on `infrastructure/cloudflared/deployment.yaml`
 ```yaml
 apiVersion: apps/v1
@@ -294,7 +294,7 @@ spec:
                   key: CLOUDFLARE_TOKEN
 ```
 
-#### 7.3.3 Kustomization (Kustomize)
+#### 6.3.3 Kustomization (Kustomize)
 Create it on `infrastructure/cloudflared/kustomization.yaml`, it references the manifests created before.
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -305,7 +305,7 @@ resources:
   - ../../secrets/cloudflared-credentials.yaml # <-- Created before and referenced on deployment.yaml
 ```
 
-### 7.3.4 Reference it on infrastructure
+### 6.3.4 Reference it on infrastructure
 Create it on `infrastructure/kustomization.yaml`
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -315,16 +315,16 @@ resources:
   - cloudflared
 ```
 
-### 7.4 Deploy on Kubernetes
+### 6.4 Deploy on Kubernetes
 Create a commit with the manifests created before and push to Git, Flux will do the magic.
 
-## 8. Add a new app
+## 7. Add a new app
 
-### 8.1 Create a new app
+### 7.1 Create a new app
 Create a new directory under `apps/` with the name of the app, e.g. `apps/xuty-dev/`
 For this example, we will use my front page `xuty-dev`.
 
-### 8.2 Create structure overlay
+### 7.2 Create structure overlay
 ```
 apps/
 └── xuty-dev/                       # ← New overlay
@@ -334,7 +334,7 @@ apps/
     └── ingress-patch.yaml
 ```
 
-### 8.3 Create kustomization overlay
+### 7.3 Create kustomization overlay
 Create a `kustomization.yaml` file on `apps/xuty-dev/` with the following content:
 
 ```yaml
@@ -358,7 +358,7 @@ patches:
 ```
 
 
-### 8.4 Namespace
+### 7.4 Namespace
 Create a `namespace.yaml` file on `apps/xuty-dev/` with the following content:
 
 ```yaml
@@ -368,7 +368,7 @@ metadata:
   name: xuty-dev
 ```
 
-### 8.5 Deployment
+### 7.5 Deployment
 Create a `deployment-patch.yaml` file on `apps/xuty-dev/` with the following content:
 
 ```yaml
@@ -385,7 +385,7 @@ spec:
           imagePullPolicy: IfNotPresent
 ```
 
-### 8.6 Ingress
+### 7.6 Ingress
 Create a `ingress-patch.yaml` file on `apps/xuty-dev/` with the following content:
 
 ```yaml
@@ -407,7 +407,7 @@ spec:
                   number: 80
 ```
 
-### 8.7 Reference it on apps
+### 7.7 Reference it on apps
 Update `apps/kustomization.yaml` with the following content:
 
 ```yaml
@@ -416,9 +416,9 @@ resources:
   - xuty-dev   # Add xuty-dev here
 ```
 
-## 9. Image automation
+## 8. Image automation
 
-### 9.1 Verify Image Automation Controllers
+### 8.1 Verify Image Automation Controllers
 
 ```bash
 kubectl get deployment -n flux-system | grep image
@@ -438,7 +438,7 @@ git commit -m "feat(flux): add image automation controllers"
 git push origin main
 ```
 
-### 9.2 Create an Encrypted GitHub PAT Secret
+### 8.2 Create an Encrypted GitHub PAT Secret
 
 A PAT is needed by `ImageUpdateAutomation` to push back to GitHub with the new image version.
 
@@ -447,7 +447,7 @@ Create a secret with the PAT, and encrypt it with SOPS:
 bash ./sops-secret.sh --name github-pat -N flux-system -l username=USERNAME -l password=PASSWORD
 ```
 
-### 9.3 Update the GitRepository for Write Access
+### 8.3 Update the GitRepository for Write Access
 
 Update the `/bootstrap/flux-system/gotk-sync` to allow write access to the repository:
 
@@ -475,7 +475,7 @@ git commit -m "feat(flux): add git credentials for image automation"
 git push origin main
 ```
 
-### 9.4 Create an Image Update Automation
+### 8.4 Create an Image Update Automation
 
 Create a new directory for global image automation resources:
 
@@ -525,7 +525,7 @@ spec:
 
 **Note:** `strategy: Setters` tells Flux to look for `# {"$imagepolicy": ...}` markers in your YAML files.
 
-### 9.5 Create an Image Policy for xuty-dev
+### 8.5 Create an Image Policy for xuty-dev
 
 Create a `xuty-dev-policy.yaml` file on `infrastructure/image-automation/` with the following content:
 
@@ -553,7 +553,7 @@ spec:
       range: ">=1.0.0"
 ```
 
-### 9.6 Wire it on infrastructure
+### 8.6 Wire it on infrastructure
 
 Update `infrastructure/kustomization.yaml` with the following content:
 
@@ -566,7 +566,7 @@ resources:
   - image-automation
 ```
 
-### 9.7 Add Image Policy Markers to your YAML files
+### 8.7 Add Image Policy Markers to your YAML files
 
 Add `# {"$imagepolicy": "xuty-dev:1.0.0"}` to your YAML files, e.g.:
 
@@ -584,7 +584,7 @@ spec:
           imagePullPolicy: IfNotPresent
 ```
 
-### 9.8 Commit and push to Git
+### 8.8 Commit and push to Git
 
 Like other steps, commit and push to Git, Flux will do the magic.
 
@@ -603,7 +603,7 @@ Within a few minutes, you should see:
  - `ImagePolicy` selecting the latest semver tag
  - `ImageUpdateAutomation` watching for changes
 
-### 9.9 Verify everything is working
+### 8.9 Verify everything is working
 
 ```bash
 # Check image repositories
