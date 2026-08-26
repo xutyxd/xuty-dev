@@ -688,6 +688,7 @@ It will be has this structure:
 infrastructure/
 ├── observability/
 │   ├── namespace.yaml
+|   ├── storage-class.yaml
 │   ├── helmrepository.yaml
 │   ├── helmrelease.yaml
 │   ├── ingress-grafana.yaml
@@ -707,7 +708,52 @@ metadata:
     app.kubernetes.io/name: observability
 ```
 
-### 9.2.3 Helm Repository
+### 9.2.3 Storage Class
+
+Create it on `infrastructure/observability/storage-class.yaml`
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: observability-local
+provisioner: rancher.io/local-path
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  nodePath: /srv/observability
+```
+
+Not Flux friendly, but it need to add path to allowed paths in `/var/lib/rancher/k3s/server/manifests/local-storage.yaml`:
+So:
+```bash
+sudo nano /var/lib/rancher/k3s/server/manifests/local-storage.yaml
+```
+Find for:
+```yaml
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: local-path-config
+  namespace: kube-system
+data:
+  config.json: |-
+    {
+      "nodePathMap":[
+      {
+        "node":"DEFAULT_PATH_FOR_NON_LISTED_NODES",
+        "paths":["/var/lib/rancher/k3s/storage", "/srv/observability"]  # <-- ADD THIS PATH
+      }
+      ]
+    }
+
+```
+Finally, restart the k3s service:
+```bash
+sudo k3s kubectl rollout restart deployment local-path-provisioner -n kube-system
+```
+
+### 9.2.4 Helm Repository
 
 Create it on `infrastructure/observability/helmrepository.yaml`
 
@@ -722,7 +768,7 @@ spec:
   url: https://prometheus-community.github.io/helm-charts
 ```
 
-### 9.2.4 Helm Release
+### 9.2.5 Helm Release
 
 Create it on `infrastructure/observability/helmrelease.yaml`
 
@@ -782,9 +828,11 @@ For grafana admin password, create a secret with the following content:
 GRAFANA_PASS=$(openssl rand -base64 24)
 
 # Create secret with SOPS and ref it on infrastructure/kustomization.yaml
-bash ./sops-secret.sh --name grafana-admin -N observability -l admin-password="$GRAFANA_PASS"
+bash ./sops-secret.sh --name grafana-admin -N observability \
+  -l admin-user=your-admin-name \
+  -l admin-password="$GRAFANA_PASS"
 ```
-### 9.2.5 Kustomization
+### 9.2.6 Kustomization
 
 Create it on `infrastructure/observability/kustomization.yaml`
 
@@ -801,7 +849,7 @@ resources:
   - storage-class.yaml
 ```
 
-### 9.2.6 Reference it on infrastructure
+### 9.2.7 Reference it on infrastructure
 
 Create it on `infrastructure/kustomization.yaml`
 
@@ -817,5 +865,5 @@ resources:
   - ../secrets/grafana-admin.yaml
 ```
 
-### 9.2.7 Commit and push to Git
+### 9.2.8 Commit and push to Git
 Commit and push to Git, Flux will do the magic. Pray for it.
