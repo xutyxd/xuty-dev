@@ -619,3 +619,203 @@ flux get image update
 kubectl logs -n flux-system deployment/image-reflector-controller -f
 kubectl logs -n flux-system deployment/image-automation-controller -f
 ```
+
+
+## 9. Observability stack
+
+### 9.1.1 Check volume
+
+```bash
+sudo vgs
+```
+
+Should show something like this:
+```bash
+VG         #PV #LV VSize    VFree
+ubuntu-vg    1   1 928.50g 728.50g
+```
+
+### 9.1.2 Claim free space
+
+```bash
+sudo lvcreate -L 100G -n observability ubuntu-vg
+```
+
+### 9.1.3 Format it as ext4
+
+```bash
+sudo mkfs.ext4 /dev/ubuntu-vg/observability
+```
+
+### 9.1.4 Create the mount point
+
+```bash
+sudo mkdir -p /srv/observability/{prometheus,grafana,loki,alertmanager}
+```
+### 9.1.5 Mount it
+Get the UUID of the volume:
+```bash
+sudo blkid /dev/ubuntu-vg/observability
+```
+Edit `/etc/fstab` and add the following line:
+```
+sudo nano /etc/fstab
+```
+Add:
+```
+UUID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx  /srv/observability  ext4  defaults,noatime,discard  0  2
+```
+
+Then test it:
+```bash
+sudo mount -a
+df -h /srv/observability
+sudo lvdisplay /dev/ubuntu-vg/observability
+```
+
+### 9.1.6 How to expand it later if needed
+
+```bash
+sudo lvextend -L +50G /dev/ubuntu-vg/observability
+sudo resize2fs /dev/ubuntu-vg/observability
+```
+
+### 9.2.1 Configuration itself
+
+It will be has this structure:
+
+```
+infrastructure/
+├── observability/
+│   ├── namespace.yaml
+│   ├── helmrepository.yaml
+│   ├── helmrelease.yaml
+│   ├── ingress-grafana.yaml
+│   └── kustomization.yaml
+```
+
+### 9.2.2 Namespace
+
+Create it on `infrastructure/observability/namespace.yaml`
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
+  labels:
+    app.kubernetes.io/name: observability
+```
+
+### 9.2.3 Helm Repository
+
+Create it on `infrastructure/observability/helmrepository.yaml`
+
+```yaml
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: prometheus-community
+  namespace: observability
+spec:
+  interval: 1h
+  url: https://prometheus-community.github.io/helm-charts
+```
+
+### 9.2.4 Helm Release
+
+Create it on `infrastructure/observability/helmrelease.yaml`
+
+```yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: victoria-metrics-k8s-stack
+  namespace: observability
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: victoria-metrics-k8s-stack
+      version: "v0.91.x"  # Check latest version: https://docs.victoriametrics.com/helm/victoria-metrics-k8s-stack/changelog/
+      sourceRef:
+        kind: HelmRepository
+        name: victoria-metrics   # <-- should match with metadata.name helmrepository.yaml
+        namespace: observability
+  values:
+    vmsingle:
+      enabled: true
+      spec:
+        retentionPeriod: "14d"  # 14 days, its a homelab
+        storage:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 60Gi   # La mayoría de tu LV
+          storageClassName: observability-local
+    loki:
+      enabled: true
+      persistence:
+        enabled: true
+        size: 25Gi
+        storageClassName: observability-local
+    grafana:
+      enabled: true
+      admin:
+        existingSecret: grafana-admin
+        userKey: admin-user
+        passwordKey: admin-password
+      ingress:
+        enabled: true
+        ingressClassName: traefik
+        hosts:
+          - grafana.xuty.dev
+    prometheus-node-exporter:
+      enabled: true
+    kube-state-metrics:
+      enabled: true
+```
+
+For grafana admin password, create a secret with the following content:
+```bash
+# Create a random password and save it
+GRAFANA_PASS=$(openssl rand -base64 24)
+
+# Create secret with SOPS and ref it on infrastructure/kustomization.yaml
+bash ./sops-secret.sh --name grafana-admin -N observability -l admin-password="$GRAFANA_PASS"
+```
+### 9.2.5 Kustomization
+
+Create it on `infrastructure/observability/kustomization.yaml`
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: observability
+
+resources:
+  - namespace.yaml
+  - helmrepository.yaml
+  - helmrelease.yaml
+  - storage-class.yaml
+```
+
+### 9.2.6 Reference it on infrastructure
+
+Create it on `infrastructure/kustomization.yaml`
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - cloudflared
+  - image-automation
+  - observability
+  - ../secrets/github-pat.yaml
+  - ../secrets/grafana-admin.yaml
+```
+
+### 9.2.7 Commit and push to Git
+Commit and push to Git, Flux will do the magic. Pray for it.

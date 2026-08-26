@@ -4,4 +4,6 @@ kind: Kustomization
 resources:
   - cloudflared
   - image-automation
+  - observability
   - ../secrets/github-pat.yaml
+  - ../secrets/grafana-admin.yaml
