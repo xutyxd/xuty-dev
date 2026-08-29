@@ -53,7 +53,7 @@ spec:
         hosts:
           - grafana.xuty.dev
       plugins:
-          - https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.31.0/victoriametrics-logs-datasource-v0.14.1.zip;victoriametrics-logs-datasource
+        - victoriametrics-logs-datasource
     prometheus-node-exporter:
       enabled: true
       extraArgs:
