@@ -24,15 +24,25 @@ spec:
             requests:
               storage: 60Gi   # La mayoría de tu LV
           storageClassName: observability-local
-    loki:
+    vlsingle:
       enabled: true
-      persistence:
-        enabled: true
-        size: 25Gi
-        storageClassName: observability-local
+      spec:
+        retentionPeriod: "7d"
+        storage:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 25Gi
+          storageClassName: observability-local
+
+    vlagent:
+      enabled: true
+      spec:
+        # Recolecta logs de todos los pods del cluster (equivalente a Promtail)
+        k8sCollector:
+          enabled: true
     grafana:
       enabled: true
-      grafana:
       admin:
         existingSecret: grafana-admin
         userKey: admin-user
@@ -42,7 +52,24 @@ spec:
         ingressClassName: traefik
         hosts:
           - grafana.xuty.dev
+      plugins:
+          - https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.31.0/victoriametrics-logs-datasource-v0.14.1.zip;victoriametrics-logs-datasource
     prometheus-node-exporter:
       enabled: true
+      extraArgs:
+        # Excluye los mounts de k3s containerd y netns que generan ruido
+        - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run/k3s/containerd/.+|run/netns/.+|var/lib/docker/.+|var/lib/kubelet/.+)($|/)
+        # Ya tienes fs-types-exclude, lo mantenemos
+        - --collector.filesystem.fs-types-exclude=^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|erofs|sysfs|tracefs)$
+        # Deshabilita collectors pesados innecesarios para homelab
+        - --no-collector.processes
+        - --no-collector.systemd
+      resources:
+        limits:
+          cpu: 100m
+          memory: 128Mi
+        requests:
+          cpu: 10m
+          memory: 32Mi
     kube-state-metrics:
       enabled: true

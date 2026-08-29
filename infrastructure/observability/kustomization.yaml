@@ -8,3 +8,4 @@ resources:
   - helmrepository.yaml
   - helmrelease.yaml
   - storage-class.yaml
+  - victorialogs-datasource.yaml
