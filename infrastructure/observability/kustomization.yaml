@@ -9,3 +9,8 @@ resources:
   - helmrelease.yaml
   - storage-class.yaml
   - victorialogs-datasource.yaml
+  - vmservicescrape-cloudflared.yaml
+  - vmservicescrape-traefik.yaml
+  - traefik-metrics-service.yaml
+  - traefik-helmchartconfig.yaml
+  - dashboard-homelab-overview.yaml
