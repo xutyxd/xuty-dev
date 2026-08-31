@@ -6,4 +6,5 @@ namespace: cloudflared
 resources:
   - namespace.yaml
   - deployment.yaml
+  - service-metrics.yaml
   - ../../secrets/cloudflared-credentials.yaml
