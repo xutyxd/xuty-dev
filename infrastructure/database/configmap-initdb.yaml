@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-initdb
+  namespace: database
+data:
+  init.sql: |
+    \getenv kratos_password KRATOS_PASSWORD
+    \getenv hydra_password HYDRA_PASSWORD
+    \getenv keto_password KETO_PASSWORD
+
+    CREATE ROLE kratos LOGIN PASSWORD :'kratos_password';
+    CREATE DATABASE kratos OWNER kratos;
+
+    CREATE ROLE hydra LOGIN PASSWORD :'hydra_password';
+    CREATE DATABASE hydra OWNER hydra;
+
+    CREATE ROLE keto LOGIN PASSWORD :'keto_password';
+    CREATE DATABASE keto OWNER keto;

@@ -10,7 +10,18 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
+  dependsOn:
+    - name: prerequisites
+  postBuild:
+    substituteFrom:
+      - kind: Secret
+        name: ory-credentials
   decryption:
     provider: sops
     secretRef:
       name: sops-age
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: StatefulSet
+      name: postgres
+      namespace: database

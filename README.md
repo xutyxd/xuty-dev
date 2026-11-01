@@ -867,3 +867,50 @@ resources:
 
 ### 9.2.8 Commit and push to Git
 Commit and push to Git, Flux will do the magic. Pray for it.
+
+## 10. Identity
+
+### 10.1 Update server to reserver disk for database
+We need to claim some disk space so, review step [9.1](#911-check-volume) to get some space
+
+Fast commands:
+```bash
+# Check volume
+sudo vgs
+# Claim free space
+sudo lvcreate -L 40G -n database ubuntu-vg
+# Format it as ext4
+sudo mkfs.ext4 /dev/ubuntu-vg/database
+# Create the mount point
+mkdir -p /srv/database
+# Get uuid
+sudo blkid /dev/ubuntu-vg/database
+# Update fstab
+sudo nano /etc/fstab
+# Add next line
+# UUID={uuid}  /srv/database  ext4  defaults,noatime,discard  0  2
+# Test it
+sudo mount -a
+df -h /srv/database
+sudo lvdisplay /dev/ubuntu-vg/database
+# Update allowed paths
+sudo nano /var/lib/rancher/k3s/server/manifests/local-storage.yaml
+# Restart it to allow to use
+sudo k3s kubectl rollout restart deployment local-path-provisioner -n kube-system
+```
+
+### 10.2 Setup Postgres DB
+Create a secret called `postgres-credentials` with:
+```bash
+# Create a random password and save it
+POSTGRES_PASSWORD=$(openssl rand -base64 24)
+
+# Create secret with SOPS and ref it on infrastructure/database/kustomization.yaml
+bash ./sops-secret.sh --name postgres-credentials -N database \
+  -l POSTGRES_PASSWORD="$POSTGRES_PASSWORD"
+```
+
+### 10.3 Create passwords for every Ory service
+Execute `setup-ory-passwords.sh`, it will create a secret (`ory-credentials`) on `flux-system` namespace with 3 random passwords with literals: `KRATOS_PASSWORD`, `HYDRA_PASSWORD` and `KETO_PASSWORD`
+
+The main problem is secret must be shared between `infrastructure` and `ory` apps, different namespaces, so load it on `flux-system` and apply `postBuild.substituteFrom`
