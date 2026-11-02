@@ -9,4 +9,4 @@ resources:
   - statefulset.yaml
   - service.yaml
   - networkpolicy.yaml
-  - ../../secrets/postgres-credentials.yaml
+  - postgres-credentials.yaml
