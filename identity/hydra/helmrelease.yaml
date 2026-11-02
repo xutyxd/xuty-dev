@@ -1,0 +1,125 @@
+
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: hydra
+  namespace: identity
+
+spec:
+  interval: 5m
+
+  chart:
+    spec:
+      chart: hydra
+      version: "0.64.0"
+      sourceRef:
+        kind: HelmRepository
+        name: ory
+        namespace: identity
+
+  values:
+    hydra:
+      automigration:
+        enabled: true
+        type: job
+
+      config:
+        dsn: ""
+
+        serve:
+          public:
+            cors:
+              enabled: true
+              allowed_origins:
+                - "https://xuty.dev"
+                - "https://*.xuty.dev"
+              allowed_methods:
+                - GET
+                - POST
+                - PUT
+                - PATCH
+                - DELETE
+              allowed_headers:
+                - Authorization
+                - Content-Type
+              allow_credentials: false
+          cookies:
+            same_site_mode: Lax
+            secure: true
+
+        urls:
+          self:
+            issuer: "https://oauth.xuty.dev/"
+          consent: "https://auth.xuty.dev/consent"
+          login: "https://auth.xuty.dev/login"
+          registration: "https://auth.xuty.dev/registration"
+          logout: "https://auth.xuty.dev/logout"
+          identity_provider:
+            url: "http://kratos-public.identity.svc.cluster.local"
+
+        strategies:
+          access_token: opaque
+
+        ttl:
+          access_token: 15m
+          refresh_token: 720h
+          id_token: 1h
+          auth_code: 10m
+
+    deployment:
+      extraEnv:
+        - name: DSN
+          valueFrom:
+            secretKeyRef:
+              name: hydra-database
+              key: DSN
+
+        - name: SECRETS_SYSTEM
+          valueFrom:
+            secretKeyRef:
+              name: hydra-credentials
+              key: HYDRA_SYSTEM
+
+        - name: SECRETS_COOKIE
+          valueFrom:
+            secretKeyRef:
+              name: hydra-credentials
+              key: HYDRA_COOKIE
+
+        - name: SECRETS_PAGINATION
+          valueFrom:
+            secretKeyRef:
+              name: hydra-credentials
+              key: HYDRA_PAGINATION
+
+    job:
+      extraEnv:
+        - name: DSN
+          valueFrom:
+            secretKeyRef:
+              name: hydra-database
+              key: DSN
+        - name: SECRETS_SYSTEM
+          valueFrom:
+            secretKeyRef:
+              name: hydra-credentials
+              key: HYDRA_SYSTEM
+        - name: SECRETS_COOKIE
+          valueFrom:
+            secretKeyRef:
+              name: hydra-credentials
+              key: HYDRA_COOKIE
+        - name: SECRETS_PAGINATION
+          valueFrom:
+            secretKeyRef:
+              name: hydra-credentials
+              key: HYDRA_PAGINATION
+
+    maester:
+      enabled: true
+
+    ingress:
+      public:
+        enabled: false
+      admin:
+        enabled: false

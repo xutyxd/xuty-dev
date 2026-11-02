@@ -11,4 +11,6 @@ spec:
     kind: GitRepository
     name: flux-system
   dependsOn:
+    - name: prerequisites
     - name: infrastructure
+    - name: identity

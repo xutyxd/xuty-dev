@@ -1,0 +1,22 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: identity
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./identity
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  dependsOn:
+    - name: infrastructure
+  postBuild:
+    substituteFrom:
+      - kind: Secret
+        name: ory-credentials
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-age

@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: identity
+resources:
+  - kratos-database.yaml
+  - helmrelease.yaml
+  - selfservice-ui-node.yaml
+  - ingress-public.yaml
+  - networkpolicy.yaml
+  - ../../secrets/kratos-credentials.yaml
+  - ../../secrets/kratos-smtp.yaml
+  - ../../secrets/kratos-ui-credentials.yaml
+
+configMapGenerator:
+  - name: kratos-identity-schema
+    files:
+      - identity.schema.json
+
+generatorOptions:
+  disableNameSuffixHash: true

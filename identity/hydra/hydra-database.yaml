@@ -1,0 +1,9 @@
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hydra-database
+  namespace: identity
+type: Opaque
+stringData:
+  DSN: "postgres://hydra:${HYDRA_PASSWORD}@postgres.database.svc.cluster.local:5432/hydra?sslmode=disable&max_conns=20&max_idle_conns=4"
