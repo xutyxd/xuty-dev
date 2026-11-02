@@ -12,6 +12,7 @@ spec:
     name: flux-system
   dependsOn:
     - name: infrastructure
+    - name: database
   postBuild:
     substituteFrom:
       - kind: Secret

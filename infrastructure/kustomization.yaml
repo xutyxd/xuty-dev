@@ -5,6 +5,6 @@ resources:
   - cloudflared
   - image-automation
   - observability
-  - database
+  - database-flux.yaml
   - ../secrets/github-pat.yaml
   - ../secrets/grafana-admin.yaml
