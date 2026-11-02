@@ -1,0 +1,9 @@
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keto-database
+  namespace: identity
+type: Opaque
+stringData:
+  DSN: "postgres://keto:${KETO_PASSWORD}@postgres.database.svc.cluster.local:5432/keto?sslmode=disable&max_conns=20&max_idle_conns=4"

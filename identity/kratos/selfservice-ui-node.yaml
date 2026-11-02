@@ -1,0 +1,70 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kratos-selfservice-ui-node
+  namespace: identity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kratos-selfservice-ui-node
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kratos-selfservice-ui-node
+    spec:
+      containers:
+        - name: ui
+          image: oryd/kratos-selfservice-ui-node:v26.2.0
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "3000"
+            - name: KRATOS_PUBLIC_URL
+              value: http://kratos-public.identity.svc.cluster.local
+            - name: KRATOS_ADMIN_URL
+              value: http://kratos-admin.identity.svc.cluster.local
+            - name: KRATOS_BROWSER_URL
+              value: https://auth.xuty.dev
+            - name: COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: kratos-ui-credentials
+                  key: COOKIE_SECRET
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kratos-selfservice-ui-node
+  namespace: identity
+spec:
+  selector:
+    app.kubernetes.io/name: kratos-selfservice-ui-node
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

@@ -1,0 +1,19 @@
+# Ejemplo para apps que acepten identidad en cabeceras.
+# No habilitar hasta tener JWKS/issuer funcionando.
+apiVersion: oathkeeper.ory.sh/v1alpha1
+kind: Rule
+metadata:
+  name: example-protected-api
+  namespace: identity
+spec:
+  upstream:
+    url: http://xuty-dev-app.xuty-dev.svc.cluster.local
+  match:
+    url: https://api.xuty.dev/<**>
+    methods: ["GET", "POST"]
+  authenticators:
+    - handler: jwt
+  authorizer:
+    handler: allow
+  mutators:
+    - handler: id_token

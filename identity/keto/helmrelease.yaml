@@ -1,0 +1,67 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: keto
+  namespace: identity
+
+spec:
+  interval: 5m
+
+  chart:
+    spec:
+      chart: keto
+      version: "0.64.0"
+      sourceRef:
+        kind: HelmRepository
+        name: ory
+        namespace: identity
+
+  values:
+    keto:
+      automigration:
+        enabled: true
+        type: job
+
+      config:
+        dsn: ""
+        namespaces:
+          location: "file:///etc/config/keto/namespaces.ts"
+
+        serve:
+          read:
+            host: 0.0.0.0
+            port: 4466
+          write:
+            host: 0.0.0.0
+            port: 4467
+    deployment:
+      extraVolumes:
+        - name: keto-namespaces
+          configMap:
+            name: keto-namespaces
+
+      extraVolumeMounts:
+        - name: keto-namespaces
+          mountPath: /etc/config/keto
+          readOnly: true
+
+      extraEnv:
+        - name: DSN
+          valueFrom:
+            secretKeyRef:
+              name: keto-database
+              key: DSN
+
+    job:
+      extraEnv:
+        - name: DSN
+          valueFrom:
+            secretKeyRef:
+              name: keto-database
+              key: DSN
+
+    ingress:
+      read:
+        enabled: false
+      write:
+        enabled: false

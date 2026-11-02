@@ -1,0 +1,147 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kratos
+  namespace: identity
+
+spec:
+  interval: 5m
+
+  chart:
+    spec:
+      chart: kratos
+      version: "0.64.0"
+      sourceRef:
+        kind: HelmRepository
+        name: ory
+        namespace: identity
+
+  values:
+    kratos:
+      automigration:
+        enabled: true
+        type: job
+
+      config:
+        dsn: ""
+
+        serve:
+          public:
+            base_url: https://api.auth.xuty.dev/
+            cors:
+              enabled: true
+              allowed_origins:
+                - "https://xuty.dev"
+    -           - "https://*.xuty.dev"
+              allowed_methods:
+                - POST
+                - GET
+                - PUT
+                - PATCH
+                - DELETE
+              allowed_headers:
+                - Authorization
+                - Content-Type
+              allow_credentials: true
+          admin:
+            base_url: http://kratos-admin.identity.svc.cluster.local
+        selfservice:
+          default_browser_return_url: https://xuty.dev/
+          allowed_return_urls:
+            - https://xuty.dev
+            - https://auth.xuty.dev
+            - https://api.auth.xuty.dev
+          methods:
+            password:
+              enabled: true
+          flows:
+            login:
+              ui_url: https://auth.xuty.dev/login
+            registration:
+              ui_url: https://auth.xuty.dev/registration
+              enabled: true
+            settings:
+              ui_url: https://auth.xuty.dev/settings
+            recovery:
+              ui_url: https://auth.xuty.dev/recovery
+              enabled: true
+            verification:
+              ui_url: https://auth.xuty.dev/verification
+              enabled: true
+            logout:
+              after:
+                default_browser_return_url: https://xuty.dev/
+        session:
+          lifespan: 24h
+          cookie:
+            domain: xuty.dev
+            same_site: Lax
+            secure: true
+        
+        identity:
+          default_schema_id: default
+          schemas:
+            - id: default
+              url: file:///etc/config/identity.schema.json
+        courier:
+          smtp:
+            connection_uri: ""
+            from_address: no-reply@xuty.dev
+        oauth2_provider:
+          url: http://hydra-admin.identity.svc.cluster.local
+
+    deployment:
+      extraVolumes:
+        - name: identity-schema
+          configMap:
+            name: kratos-identity-schema
+
+      extraVolumeMounts:
+        - name: identity-schema
+          mountPath: /etc/config
+          readOnly: true
+
+      extraEnv:
+        - name: DSN
+          valueFrom:
+            secretKeyRef:
+              name: kratos-database
+              key: DSN
+
+        - name: SECRETS_DEFAULT
+          valueFrom:
+            secretKeyRef:
+              name: kratos-credentials
+              key: KRATOS_DEFAULT
+
+        - name: SECRETS_COOKIE
+          valueFrom:
+            secretKeyRef:
+              name: kratos-credentials
+              key: KRATOS_COOKIE
+
+        - name: SECRETS_CIPHER
+          valueFrom:
+            secretKeyRef:
+              name: kratos-credentials
+              key: KRATOS_CIPHER
+
+        - name: COURIER_SMTP_CONNECTION_URI
+          valueFrom:
+            secretKeyRef:
+              name: kratos-smtp
+              key: KRATOS_SMTP
+
+    job:
+      extraEnv:
+        - name: DSN
+          valueFrom:
+            secretKeyRef:
+              name: kratos-database
+              key: DSN
+
+    ingress:
+      public:
+        enabled: false
+      admin:
+        enabled: false

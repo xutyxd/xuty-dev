@@ -914,3 +914,59 @@ bash ./sops-secret.sh --name postgres-credentials -N database \
 Execute `setup-ory-passwords.sh`, it will create a secret (`ory-credentials`) on `flux-system` namespace with 3 random passwords with literals: `KRATOS_PASSWORD`, `HYDRA_PASSWORD` and `KETO_PASSWORD`
 
 The main problem is secret must be shared between `infrastructure` and `ory` apps, different namespaces, so load it on `flux-system` and apply `postBuild.substituteFrom`
+
+### 10.4 Hydra
+It requires `HYDRA_PASSWORD` from `postBuild`, so a secret is created to get it and create its `DSN`. It will be use for database connection on deployment and job
+
+On the other hand, Hydra needs 3 secrets more, for system itself, for cookies and pagination tokens.
+
+Create a secret as always with:
+```bash
+# Create a random password and save it
+HYDRA_SYSTEM=$(openssl rand -base64 24)
+HYDRA_COOKIE=$(openssl rand -base64 24)
+HYDRA_PAGINATION=$(openssl rand -base64 24)
+
+# Create secret with SOPS and ref it on infrastructure/database/kustomization.yaml
+bash ./sops-secret.sh --name hydra-credentials -N identity \
+  -l HYDRA_SYSTEM="$HYDRA_SYSTEM" \
+  -l HYDRA_COOKIE="$HYDRA_COOKIE" \
+  -l HYDRA_PAGINATION="$HYDRA_PAGINATION" \
+```
+
+### 10.5 Keto
+Configured `namespaces.keto.ts` with a generic relations to cover most used cases
+
+
+### 10.6 Kratos
+As Hydra, need its credentials so same script:
+```bash
+# Create a random password and save it
+KRATOS_DEFAULT=$(openssl rand -base64 24)
+KRATOS_COOKIE=$(openssl rand -base64 24)
+KRATOS_PAGINATION=$(openssl rand -base64 24)
+
+# Create secret with SOPS and ref it on infrastructure/database/kustomization.yaml
+bash ./sops-secret.sh --name kratos-credentials -N identity \
+  -l KRATOS_DEFAULT="$KRATOS_DEFAULT" \
+  -l KRATOS_COOKIE="$KRATOS_COOKIE" \
+  -l KRATOS_CIPHER="$KRATOS_CIPHER" \
+```
+
+Kratos need to send emails for recovery and verification flows. So we will integrate with [Resend](https://resend.com) that offers 3000 free emails.
+
+Integrate with Cloudflare is 2 clicks then create an api key that usually starts with: `re_`
+
+Create a secret with SOPS + Age as always with:
+```bash
+RESEND_API="re_"
+bash ./sops-secret.sh --name kratos-smtp -N identity \
+    -l KRATOS_SMTP="smtps://resend:$RESEND_API@smtp.resend.com:465"
+```
+
+For `selfservice-ui-node` need another secret... so:
+```bash
+COOKIE_SECRET=$(openssl rand -base64 24)
+bash ./sops-secret.sh --name kratos-ui-credentials -N identity \
+  -l COOKIE_SECRET="$COOKIE_SECRET"
+```

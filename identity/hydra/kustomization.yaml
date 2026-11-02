@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: identity
+resources:
+  - hydra-database.yaml
+  - helmrelease.yaml
+  - ingress-public.yaml
+  - networkpolicy.yaml
+  - ../../secrets/hydra-credentials.yaml
