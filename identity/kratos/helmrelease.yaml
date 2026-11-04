@@ -32,7 +32,7 @@ spec:
               enabled: true
               allowed_origins:
                 - "https://xuty.dev"
-    -           - "https://*.xuty.dev"
+                - "https://*.xuty.dev"
               allowed_methods:
                 - POST
                 - GET

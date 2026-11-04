@@ -4,7 +4,7 @@ namespace: identity
 resources:
   - namespace.yaml
   - helmrepository.yaml
-  - hydra/kustomization.yaml
-  - keto/kustomization.yaml
-  - kratos/kustomization.yaml
-  - oathkeeper/kustomization.yaml
+  - hydra
+  - keto
+  - kratos
+  - oathkeeper

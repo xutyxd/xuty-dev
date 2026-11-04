@@ -9,7 +9,7 @@ resources:
 configMapGenerator:
   - name: keto-namespaces
     files:
-      - namespaces.keto.ts
+      - namespaces.ts=namespaces.keto.ts
 
 generatorOptions:
   disableNameSuffixHash: true
