@@ -25,7 +25,7 @@ spec:
       config:
         dsn: ""
         namespaces:
-          location: "file:///etc/config/keto/namespaces.ts"
+          location: file:///etc/config/keto/namespaces.ts
 
         serve:
           read:
