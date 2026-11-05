@@ -80,7 +80,7 @@ spec:
           cookie:
             domain: xuty.dev
             same_site: Lax
-            secure: true
+            secure: "true"
         
         identity:
           default_schema_id: default
