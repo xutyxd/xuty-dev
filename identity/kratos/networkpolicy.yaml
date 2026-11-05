@@ -16,6 +16,30 @@ spec:
       ports:
         - protocol: TCP
           port: 4433
+
+    # Oathkeeper
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: identity
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: oathkeeper
+      ports:
+        - protocol: TCP
+          port: 4433
+
+    # Kratos Self-Service UI
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: identity
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: kratos-selfservice-ui-node
+      ports:
+        - protocol: TCP
+          port: 4433
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

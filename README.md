@@ -967,6 +967,8 @@ bash ./sops-secret.sh --name kratos-smtp -N identity \
 For `selfservice-ui-node` need another secret... so:
 ```bash
 COOKIE_SECRET=$(openssl rand -base64 24)
+CSRF_COOKIE_SECRET=$(openssl rand -base64 24)
 bash ./sops-secret.sh --name kratos-ui-credentials -N identity \
-  -l COOKIE_SECRET="$COOKIE_SECRET"
+  -l COOKIE_SECRET="$COOKIE_SECRET" \
+  -l CSRF_COOKIE_SECRET="$CSRF_COOKIE_SECRET"
 ```
