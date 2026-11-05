@@ -950,10 +950,12 @@ KRATOS_PAGINATION=$(openssl rand -base64 24)
 
 # Create secret with SOPS and ref it on infrastructure/database/kustomization.yaml
 bash ./sops-secret.sh --name kratos-credentials -N identity \
-  -l KRATOS_DEFAULT="$KRATOS_DEFAULT" \
-  -l KRATOS_COOKIE="$KRATOS_COOKIE" \
-  -l KRATOS_CIPHER="$KRATOS_CIPHER" \
+  -l secretsDefault="$KRATOS_DEFAULT" \
+  -l secretsCookie="$KRATOS_COOKIE" \
+  -l secretsCipher="$KRATOS_CIPHER"
 ```
+As Hydra too, need to avoid duplicate env vars and use fixed literals expected by Kratos.
+
 
 Kratos need to send emails for recovery and verification flows. So we will integrate with [Resend](https://resend.com) that offers 3000 free emails.
 

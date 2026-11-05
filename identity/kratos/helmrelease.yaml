@@ -18,6 +18,10 @@ spec:
 
   values:
     kratos:
+      secret:
+        enabled: false
+        nameOverride: kratos-credentials
+
       automigration:
         enabled: true
         type: job
@@ -107,24 +111,6 @@ spec:
             secretKeyRef:
               name: kratos-database
               key: DSN
-
-        - name: SECRETS_DEFAULT
-          valueFrom:
-            secretKeyRef:
-              name: kratos-credentials
-              key: KRATOS_DEFAULT
-
-        - name: SECRETS_COOKIE
-          valueFrom:
-            secretKeyRef:
-              name: kratos-credentials
-              key: KRATOS_COOKIE
-
-        - name: SECRETS_CIPHER
-          valueFrom:
-            secretKeyRef:
-              name: kratos-credentials
-              key: KRATOS_CIPHER
 
         - name: COURIER_SMTP_CONNECTION_URI
           valueFrom:
