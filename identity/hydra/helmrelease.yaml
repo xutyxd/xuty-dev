@@ -19,6 +19,10 @@ spec:
 
   values:
     hydra:
+      secret:
+        enabled: false
+        nameOverride: hydra-credentials
+
       automigration:
         enabled: true
         type: job
@@ -74,24 +78,6 @@ spec:
               name: hydra-database
               key: DSN
 
-        - name: SECRETS_SYSTEM
-          valueFrom:
-            secretKeyRef:
-              name: hydra-credentials
-              key: HYDRA_SYSTEM
-
-        - name: SECRETS_COOKIE
-          valueFrom:
-            secretKeyRef:
-              name: hydra-credentials
-              key: HYDRA_COOKIE
-
-        - name: SECRETS_PAGINATION
-          valueFrom:
-            secretKeyRef:
-              name: hydra-credentials
-              key: HYDRA_PAGINATION
-
     job:
       extraEnv:
         - name: DSN
@@ -99,21 +85,6 @@ spec:
             secretKeyRef:
               name: hydra-database
               key: DSN
-        - name: SECRETS_SYSTEM
-          valueFrom:
-            secretKeyRef:
-              name: hydra-credentials
-              key: HYDRA_SYSTEM
-        - name: SECRETS_COOKIE
-          valueFrom:
-            secretKeyRef:
-              name: hydra-credentials
-              key: HYDRA_COOKIE
-        - name: SECRETS_PAGINATION
-          valueFrom:
-            secretKeyRef:
-              name: hydra-credentials
-              key: HYDRA_PAGINATION
 
     maester:
       enabled: true

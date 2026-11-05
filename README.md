@@ -929,10 +929,12 @@ HYDRA_PAGINATION=$(openssl rand -base64 24)
 
 # Create secret with SOPS and ref it on infrastructure/database/kustomization.yaml
 bash ./sops-secret.sh --name hydra-credentials -N identity \
-  -l HYDRA_SYSTEM="$HYDRA_SYSTEM" \
-  -l HYDRA_COOKIE="$HYDRA_COOKIE" \
-  -l HYDRA_PAGINATION="$HYDRA_PAGINATION" \
+  -l secretsSystem="$HYDRA_SYSTEM" \
+  -l secretsCookie="$HYDRA_COOKIE" \
+  -l secretsPagination="$HYDRA_PAGINATION"
 ```
+The literals are those expected by Hydra. No mapping allowed.
+
 
 ### 10.5 Keto
 Configured `namespaces.keto.ts` with a generic relations to cover most used cases
