@@ -32,7 +32,7 @@ spec:
               value: http://kratos-admin.identity.svc.cluster.local
 
             - name: KRATOS_BROWSER_URL
-              value: https://auth.xuty.dev
+              value: https://api.auth.xuty.dev/
 
             - name: COOKIE_SECRET
               valueFrom:
