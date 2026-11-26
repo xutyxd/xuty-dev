@@ -35,6 +35,9 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: identity
+          podSelector:
+            matchLabels:
+              keto-write-access: "true"
       ports:
         - protocol: TCP
           port: 4467

@@ -927,7 +927,7 @@ HYDRA_SYSTEM=$(openssl rand -base64 24)
 HYDRA_COOKIE=$(openssl rand -base64 24)
 HYDRA_PAGINATION=$(openssl rand -base64 24)
 
-# Create secret with SOPS and ref it on infrastructure/database/kustomization.yaml
+# Create secret with SOPS and ref it on identity/hydra/kustomization.yaml
 bash ./sops-secret.sh --name hydra-credentials -N identity \
   -l secretsSystem="$HYDRA_SYSTEM" \
   -l secretsCookie="$HYDRA_COOKIE" \
@@ -946,9 +946,9 @@ As Hydra, need its credentials so same script:
 # Create a random password and save it
 KRATOS_DEFAULT=$(openssl rand -base64 24)
 KRATOS_COOKIE=$(openssl rand -base64 24)
-KRATOS_PAGINATION=$(openssl rand -base64 24)
+KRATOS_CIPHER=$(openssl rand -base64 24)
 
-# Create secret with SOPS and ref it on infrastructure/database/kustomization.yaml
+# Create secret with SOPS and ref it on identity/kratos/kustomization.yaml
 bash ./sops-secret.sh --name kratos-credentials -N identity \
   -l secretsDefault="$KRATOS_DEFAULT" \
   -l secretsCookie="$KRATOS_COOKIE" \
