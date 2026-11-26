@@ -15,9 +15,9 @@ spec:
         app.kubernetes.io/name: postgres
     spec:
       securityContext:
-        fsGroup: 999
-        runAsUser: 999
-        runAsGroup: 999
+        fsGroup: 70
+        runAsGroup: 70
+        runAsUser: 70
       containers:
         - name: postgres
           image: postgres:16-alpine # TODO pin digest
