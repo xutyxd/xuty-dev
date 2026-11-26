@@ -18,6 +18,8 @@ spec:
         fsGroup: 70
         runAsGroup: 70
         runAsUser: 70
+        appArmorProfile:
+          type: Unconfined
       containers:
         - name: postgres
           image: postgres:16-alpine # TODO pin digest
