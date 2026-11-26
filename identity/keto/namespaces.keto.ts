@@ -152,7 +152,7 @@ class Resource implements Namespace {
         isOwner: (ctx: Context): boolean => 
             this.related.owners_user.includes(ctx.subject) ||
             this.related.owners_group.traverse((g) => g.permits.isMember(ctx)) ||
-            this.related.owners_role.traverse((r) => r.permits.isMember(ctx))
+            this.related.owners_role.traverse((r) => r.permits.isMember(ctx)),
         read: (ctx: Context): boolean =>
             // Owners
             this.permits.isOwner(ctx) ||

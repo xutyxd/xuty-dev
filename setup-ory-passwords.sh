@@ -1,12 +1,9 @@
 #!/usr/bin/env bash
-set -e
-
-#
-chmod +x ./sops-secret.sh
+set -euo pipefail
 
 umask 077
 
-tmp="$(mktemp ./secret-XXXXXX.env)"
+tmp="$(mktemp "${TMPDIR:-/tmp}/ory-secret-XXXXXX.env")"
 
 trap 'rm -f "$tmp"' EXIT
 
@@ -16,7 +13,7 @@ trap 'rm -f "$tmp"' EXIT
   printf 'KETO_PASSWORD=%s\n' "$(openssl rand -hex 32)"
 } > "$tmp"
 
-./sops-secret.sh \
+bash ./sops-secret.sh \
   --name ory-credentials \
   --namespace flux-system \
   --env-file "$tmp"

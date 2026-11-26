@@ -1,14 +1,16 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: hydra-public
+  name: hydra
   namespace: identity
 spec:
   podSelector:
     matchLabels:
+      app.kubernetes.io/name: hydra
       app.kubernetes.io/instance: hydra
   policyTypes: ["Ingress"]
   ingress:
+    # Public OAuth2/OIDC endpoint (puerto 4444) desde Traefik (kube-system)
     - from:
         - namespaceSelector:
             matchLabels:
@@ -16,15 +18,27 @@ spec:
       ports:
         - protocol: TCP
           port: 4444
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: hydra-admin-deny
-  namespace: identity
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/instance: hydra
-      app.kubernetes.io/component: admin
-  policyTypes: ["Ingress"]
+
+    # Admin API (puerto 4445) únicamente desde componentes autorizados en identity
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: identity
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: kratos
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: identity
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: oathkeeper
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: identity
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: hydra-maester
+      ports:
+        - protocol: TCP
+          port: 4445

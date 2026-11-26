@@ -6,6 +6,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
+      app.kubernetes.io/name: kratos
       app.kubernetes.io/instance: kratos
   policyTypes: ["Ingress"]
   ingress:
@@ -40,15 +41,35 @@ spec:
       ports:
         - protocol: TCP
           port: 4433
+
+    # Hydra (identity_provider.url)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: identity
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: hydra
+              app.kubernetes.io/instance: hydra
+      ports:
+        - protocol: TCP
+          port: 4433
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: kratos-admin-deny
+  name: kratos-selfservice-ui-node
   namespace: identity
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/instance: kratos
-      app.kubernetes.io/component: admin
+      app.kubernetes.io/name: kratos-selfservice-ui-node
   policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: TCP
+          port: 3000
